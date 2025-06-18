@@ -5,7 +5,12 @@ import viteTsconfigPaths from 'vite-tsconfig-paths';
 import svgr from 'vite-plugin-svgr';
 
 // The following are known larger packages or packages that can be loaded asynchronously.
-const individuallyPackages = ['activities', 'github.svg', 'grid.svg'];
+const individuallyPackages = [
+  'activities',
+  'github.svg',
+  'grid.svg',
+  'mol.svg',
+];
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -36,6 +41,9 @@ export default defineConfig({
     }),
   ],
   base: process.env.PATH_PREFIX || '/',
+  define: {
+    'import.meta.env.VERCEL': JSON.stringify(process.env.VERCEL),
+  },
   build: {
     manifest: true,
     outDir: './dist', // for user easy to use, vercel use default dir -> dist
