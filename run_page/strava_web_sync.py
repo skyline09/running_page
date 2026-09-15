@@ -99,7 +99,15 @@ class WebActivity:
         self.moving_time = datetime.timedelta(seconds=moving_secs)
         elapsed_secs = int(raw.get("elapsed_time_raw") or 0) or moving_secs
         self.elapsed_time = datetime.timedelta(seconds=elapsed_secs)
-        self.start_date = raw.get("start_time", "")
+        start_time = raw.get("start_time", "")
+        if start_time:
+            try:
+                dt_start = datetime.datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S%z")
+                self.start_date = dt_start.astimezone(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S+00:00")
+            except Exception:
+                self.start_date = start_time
+        else:
+            self.start_date = ""
         # start_date_local_raw is a Unix timestamp -> local date string
         self.start_date_local = _fmt_local_date(raw.get("start_date_local_raw"))
         self.elevation_gain = raw.get("elevation_gain_raw") or 0.0
@@ -128,11 +136,16 @@ class WebActivity:
 
 
 def _fmt_local_date(ts):
-    """Unix timestamp -> 'YYYY-MM-DD HH:MM:SS' in BASE_TIMEZONE."""
+    """Unix timestamp -> 'YYYY-MM-DD HH:MM:SS' in athlete's local time.
+
+    In Strava Web API, start_date_local_raw is already the epoch timestamp
+    representing local clock time. Interpreting it with UTC directly extracts
+    the local year, month, day, hour, minute, and second without double-applying
+    the timezone offset.
+    """
     if not ts:
         return ""
-    local_tz = pytz.timezone(BASE_TIMEZONE)
-    dt = datetime.datetime.fromtimestamp(int(ts), tz=datetime.UTC).astimezone(local_tz)
+    dt = datetime.datetime.fromtimestamp(int(ts), tz=datetime.timezone.utc)
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
