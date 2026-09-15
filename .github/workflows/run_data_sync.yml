@@ -25,7 +25,7 @@ on:
 
 env:
   # please change to your own config.
-  RUN_TYPE: strava # support strava/nike/garmin/coros/garmin_cn/garmin_sync_cn_global/keep/only_gpx/only_fit/nike_to_strava/strava_to_garmin/tcx_to_garmin/strava_to_garmin_cn/garmin_to_strava/garmin_to_strava_cn/codoon/oppo, Please change the 'pass' it to your own
+  RUN_TYPE: strava_web # support strava/nike/garmin/coros/garmin_cn/garmin_sync_cn_global/keep/only_gpx/only_fit/nike_to_strava/strava_to_garmin/tcx_to_garmin/strava_to_garmin_cn/garmin_to_strava/garmin_to_strava_cn/codoon/oppo, Please change the 'pass' it to your own
   ATHLETE: skyline09
   TITLE: skyline09 Running
   MIN_GRID_DISTANCE: 10 # change min distance here
@@ -124,6 +124,11 @@ jobs:
         if: env.RUN_TYPE == 'strava'
         run: |
           python run_page/strava_sync.py ${{ secrets.STRAVA_CLIENT_ID }} ${{ secrets.STRAVA_CLIENT_SECRET }} ${{ secrets.STRAVA_CLIENT_REFRESH_TOKEN }}
+
+      - name: Run sync Strava web script
+        if: env.RUN_TYPE == 'strava_web'
+        run: |
+          python run_page/strava_web_sync.py "${{ secrets.STRAVA_JWT }}" --days 90
         # If you only want to sync `type running` add args --only-run, default script is to sync all data (rides and runs).
 
       - name: Run sync Codoon script
