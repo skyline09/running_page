@@ -241,3 +241,4 @@ if __name__ == "__main__":
     options = parser.parse_args()
     run_strava_web_sync(options.jwt, days=options.days, only_run=options.only_run)
 
+
