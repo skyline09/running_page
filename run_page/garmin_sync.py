@@ -8,6 +8,8 @@ import asyncio
 import datetime as dt
 import logging
 import os
+
+os.environ["GARTH_TELEMETRY_ENABLED"] = "false"
 import sys
 import time
 import traceback
@@ -19,7 +21,7 @@ import aiofiles
 import garth
 import httpx
 from config import FOLDER_DICT, JSON_FILE, SQL_FILE
-from garmin_device_adaptor import wrap_device_info
+from garmin_device_adaptor import process_garmin_data
 from utils import make_activities_file
 
 # logging.basicConfig(level=logging.DEBUG)
@@ -57,7 +59,7 @@ class Garmin:
             else GARMIN_COM_URL_DICT
         )
         if auth_domain and str(auth_domain).upper() == "CN":
-            garth.configure(domain="garmin.cn")
+            garth.configure(domain="garmin.cn", ssl_verify=False)
         self.modern_url = self.URL_DICT.get("MODERN_URL")
         garth.client.loads(secret_string)
         if garth.client.oauth2_token.expired:
@@ -132,16 +134,11 @@ class Garmin:
             use_fake_garmin_device,
         )
         for data in datas:
-            print(data.filename)
             with open(data.filename, "wb") as f:
                 for chunk in data.content:
                     f.write(chunk)
             f = open(data.filename, "rb")
-            # wrap fake garmin device to origin fit file, current not support gpx file
-            if use_fake_garmin_device:
-                file_body = wrap_device_info(f)
-            else:
-                file_body = BytesIO(f.read())
+            file_body = process_garmin_data(f, use_fake_garmin_device)
             files = {"file": (data.filename, file_body)}
 
             try:
@@ -277,7 +274,7 @@ async def download_garmin_data(
     folder = FOLDER_DICT.get(file_type, "gpx")
     try:
         file_data = await client.download_activity(activity_id, file_type=file_type)
-        if summary_infos is not None:
+        if summary_infos is not None and file_type == "gpx":
             file_data = add_summary_info(file_data, summary_infos.get(activity_id))
         file_path = os.path.join(folder, f"{activity_id}.{file_type}")
         need_unzip = False

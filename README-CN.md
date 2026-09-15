@@ -12,7 +12,6 @@
    ```
 
 5. 2024.09.29: Added `Elevation Gain` field, If you forked the project before this update, please run the following command:
-
    - To resolve errors: `sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such column: activities.elevation_gain`
    - If you don't have a local environment, set `RUN_TYPE` to `db_updater` in the `.github/workflows/run_data_sync.yml` file once then change back.
 
@@ -23,6 +22,7 @@
    - For old data: To include `Elevation Gain` for past activities, perform a full reimport.
    - To show the 'Elevation Gain' column, modify `SHOW_ELEVATION_GAIN` in `src/utils/const.ts`
    - note: `Elevation Gain` may be inaccurate. You can use Strava's "Correct Elevation" or Garmin's "Elev Corrections" feature for more precise data.
+6. 本项目现在默认使用 MapCN（免费）。如果你选择使用 Mapbox，请获取你自己的 token。请勿使用项目维护者的 token - 查看此 [issue](https://github.com/yihong0618/running_page/issues/643) 和 [issue #1055](https://github.com/yihong0618/running_page/issues/1055)
 
 ![running_page](https://socialify.git.ci/yihong0618/running_page/image?description=1&font=Inter&forks=1&issues=1&language=1&logo=https%3A%2F%2Fraw.githubusercontent.com%2Fshaonianche%2Fgallery%2Fmaster%2Frunning_page%2Frunning_page_logo_150*150.jpg&owner=1&pulls=1&stargazers=1&theme=Light)
 
@@ -122,7 +122,14 @@ R.I.P. 希望大家都能健康顺利的跑过终点，逝者安息。
 | [Evan](https://github.com/LinghaoChan)            | <https://github.com/LinghaoChan/running>       | Keep        |
 | [Shuqi](https://github.com/zhufengme)             | <https://runner-shuqi.devlink.cn/>             | Garmin      |
 | [shugoal](https://github.com/shugoal)             | <https://shugoal.github.io/wk-shu/>            | Garmin      |
-
+| [Bolyn](https://run.wbolyn.com)                   | <https://run.wbolyn.com>                       | Coros       |
+| [LeiChen](https://github.com/xthirty77)           | <https://xthirty77.github.io/running_page/>    | Coros       |
+| [itrunner](https://itrunner.cn)                   | <https://itrunner.cn>                          | Garmin      |
+| [maslke](https://github.com/maslke)               | <https://maslke.space/running_page/>           | Garmin-cn   |
+| [Niewei Yang](https://github.com/Niewei-Yang)     | <https://neewii-worksout.vercel.app/>          | Strava      |
+| [RUN.LOG](https://github.com/bzzd2001)            | <https://run.731558.xyz:6881/>                 | Strava      |
+| [StoneRicky](https://github.com/StoneRicky)       | <https://stonericky.github.io/running_page/>   | COROS       |
+| [coutureone](https://github.com/coutureone)          | <https://run.xcouture.cc/>                     | Garmin      |
 </details>
 
 ## 它是怎么工作的
@@ -136,6 +143,7 @@ R.I.P. 希望大家都能健康顺利的跑过终点，逝者安息。
 3. React Hooks
 4. Mapbox 进行地图展示
 5. Nike、Strava、佳明（佳明中国）及 Keep 等，自动备份 GPX 数据，方便备份及上传到其它软件
+6. 支持终端界面（TUI）本地浏览运动数据
 
 > 因为数据存在 gpx 和 data.db 中，理论上支持几个软件一起，你可以把之前各类 App 的数据都同步到这里（建议本地同步，之后 Actions 选择正在用的 App）
 >
@@ -159,7 +167,6 @@ R.I.P. 希望大家都能健康顺利的跑过终点，逝者安息。
 - **[Garmin-cn](#garmin-cn-大陆用户使用)**
 - **[Keep](#keep)**
 - **[悦跑圈](#joyrun悦跑圈)** ：限制单个设备，无法自动化
-- **[咕咚](#codoon咕咚)** ：限制单个设备，无法自动化
 - **[郁金香运动](#tulipsport)**
 - **[GPX](#gpx)**
 - **[TCX](#tcx)**
@@ -172,6 +179,10 @@ R.I.P. 希望大家都能健康顺利的跑过终点，逝者安息。
 - **[Garmin_to_Strava(Using Garmin Run, Strava backup data)](#garmin_to_strava)**
 - **[Strava_to_Garmin(Using Strava Run, Garmin backup data)](#strava_to_garmin)**
 - **[Coros 高驰](#coros-高驰)**
+- **[iGPSPORT迹驰](#igpsport)**
+- **[Komoot](#komoot)**
+- **[Onelap](#onelap)**
+- **[Intervals.icu](#intervalsicu)**
 
 ## 视频教程
 
@@ -193,6 +204,30 @@ pnpm develop
 ```
 
 访问 <http://localhost:5173/> 查看
+
+## TUI（终端界面）
+
+你可以在终端中使用内置的 Textual TUI 浏览运动数据。
+
+```bash
+# 使用 make
+make tui
+
+# 或直接用 uv 运行
+uv run run_page
+
+# 或指定自定义的 activities.json 路径
+uv run run_page /path/to/your/activities.json
+```
+
+TUI 中的键盘快捷键：
+
+- `1` / `2` – 切换列表和统计视图
+- `←` / `→` – 切换年份
+- `↑` / `↓` – 选择活动
+- `y` – 循环切换年份
+- `t` – 循环切换运动类型
+- `q` – 退出
 
 ## Docker
 
@@ -225,79 +260,128 @@ docker run -itd -p 80:80   running_page:latest
 
 ## 替换 Mapbox token
 
-> 建议有能力的同学把 `src/utils/const.ts` 文件中的 Mapbox token 自己的 [Mapbox token](https://www.mapbox.com/)
+> **安全提示**: Mapbox token 已从 `src/themes/classic/utils/const.ts` 迁移到 `config.yml` 以获得更好的安全管理。
 >
-> 如果你是海外用户请更改 `IS_CHINESE = false` in `src/utils/const.ts`
+> **对于 GitHub Actions / 自动部署**:
+> 1. 进入你的仓库 **Settings → Secrets and variables → Actions**
+> 2. 创建名为 `MAPBOX_TOKEN` 的 Secret，填入你的 Mapbox token 值
+> 3. 构建过程会在 GitHub Actions 工作流执行时自动注入该 token
+> 4. **不要**在仓库中提交你的 token
+>
+> **优先级顺序**：
+> - GitHub Actions Secret (`MAPBOX_TOKEN` 环境变量) 优先级最高
+> - 如果 Secret 未设置，则回退到 `config.yml` 中的 mapbox_token
+> - 如果都未设置，则默认为空字符串
 
-```typescript
-const MAPBOX_TOKEN =
-  'pk.eyJ1IjoieWlob25nMDYxOCIsImEiOiJja2J3M28xbG4wYzl0MzJxZm0ya2Fua2p2In0.PNKfkeQwYuyGOTT_x9BJ4Q';
+设置你的 [Mapbox token](https://www.mapbox.com/) 有以下几种方式：
+
+**方式 1：GitHub Actions Secret（推荐用于 GitHub Pages）**
+```bash
+# 将 MAPBOX_TOKEN 添加到仓库 Secrets
+# config.yml 中无需改动 - 会自动使用 Secret 中的 token
 ```
 
-## 更改默认地图服务样式
+**方式 2：本地开发编辑 config.yml**
+```yaml
+# config.yml
+mapbox_token: 'pk.eyJ1...your-token-here'
+```
 
-> 在使用默认的地图服务样式之外，你可以通过修改 src/utils/const.ts 文件中的以下配置项来自定义地图显示。
+**方式 3：本地开发使用环境变量**
+```bash
+export VITE_MAPBOX_TOKEN='pk.eyJ1...your-token-here'
+pnpm develop
+```
+
+> **重要提示**: 不要使用项目维护者的 token - 查看此 [issue](https://github.com/yihong0618/running_page/issues/643) 和 [issue #1055](https://github.com/yihong0618/running_page/issues/1055) 了解安全和速率限制的考虑。
+
+## 更改默认地图服务样式（经典主题）
+
+> 如果使用**经典（classic）**主题，你可以通过修改经典主题的配置来自定义地图显示。Dashboard 主题默认使用 Mapbox（通过 `config.yml` 配置）。
 
 ```typescript
-const MAP_TILE_VENDOR = 'maptiler';
-const MAP_TILE_STYLE = 'winter-dark';
-const MAP_TILE_ACCESS_TOKEN = '你的 access token';
+const MAP_TILE_VENDOR = 'mapcn'; // 默认（免费！）
+const MAP_TILE_STYLE = 'osm-bright';
+const MAP_TILE_ACCESS_TOKEN = ''; // MapCN 不需要 token
 ```
 
 目前，支持的 MAP_TILE_VENDOR 选项包括：
 
-- **"mapbox"** - Mapbox 地图服务
+- **"mapcn"** - MapCN 地图服务（免费，无需 token）⭐ 默认推荐
+- **"mapbox"** - Mapbox 地图服务（需要 token，有费用）
+- **"maptiler"** - MapTiler 地图服务（有免费额度）
+- **"stadiamaps"** - Stadia Maps 地图服务（有免费额度）
 
-- **"maptiler"** - MapTiler 地图服务
+使用 MapCN（默认）
+MapCN 是免费的地图服务提供商，现在是默认选项，无需配置！
 
-- **"stadiamaps"** - Stadia Maps 地图服务
+可用的 MapCN 样式：
 
-每个`MAP_TILE_VERNDOR`都提供了多种`MAP_TILE_STYLE`选择，配置时需保证匹配。具体的`MAP_TILE_STYLE`名称，可参考`src/utils/const.ts`文件中的定义。
+- **osm-bright** - 明亮的 OpenStreetMap 样式（默认）
+- **osm-liberty** - 备选明亮样式
+- **dark-matter** - 深色主题样式
 
-当使用 **"maptiler"** 或是 **"stadiamaps"** 时，需配置`MAP_TILE_ACCESS_TOKEN`。默认的 token 在不更改的情况下，使用时会发生配额超限的问题。
+**无需访问令牌！** 🎉
 
-- **MapTiler**: 在 https://cloud.maptiler.com/auth/widget 注册获取（免费）
+## 版权归属
 
-- **Stadia Maps**: 在 https://client.stadiamaps.com/signup/ 注册获取（免费）
+当使用 MapCN (Carto Basemaps) 时，请确保遵守其版权归属要求：
 
-## 个性化设置
+- 地图瓦片: © [CARTO](https://carto.com/)
+- 地图数据: © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors
 
-> 在仓库目录下找到 `src/static/site-metadata.ts`，找到以下内容并修改成你自己想要的。
+本项目模板已在地图显示中包含了相应的版权声明。
+
+## 使用其他提供商
+如果你更喜欢 Mapbox、MapTiler 或 Stadia Maps，你可以更改供应商：
 
 ```typescript
-siteMetadata: {
-  siteTitle: 'Running Page', #网站标题
-  siteUrl: 'https://yihong.run', #网站域名
-  logo: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQTtc69JxHNcmN1ETpMUX4dozAgAN6iPjWalQ&usqp=CAU', #左上角 LOGO
-  description: 'Personal site and blog',
-  navLinks: [
-    {
-      name: 'Blog', #右上角导航名称
-      url: 'https://yihong.run/running', #右上角导航链接
-    },
-    {
-      name: 'About',
-      url: 'https://github.com/yihong0618/running_page/blob/master/README-CN.md',
-    },
-  ],
-},
+const MAP_TILE_VENDOR = 'mapbox'; // 或 'maptiler' 或 'stadiamaps'
+const MAP_TILE_STYLE = 'dark-v10'; // 所选供应商的样式
+const MAP_TILE_ACCESS_TOKEN = 'your_access_token_here';
 ```
 
-> 修改 `src/utils/const.ts` 文件中的样式：
+每个`MAP_TILE_VERNDOR`都提供了多种`MAP_TILE_STYLE`选择，配置时需保证匹配。具体的`MAP_TILE_STYLE`名称，可参考经典主题中的地图配置文件。
 
-```typescript
-// styling: 关闭虚线：设置为 `false`
-const USE_DASH_LINE = true;
-// styling: 透明度：[0, 1]
-const LINE_OPACITY = 0.4;
-// update for now 2024/11/17 the privacy mode is true
-// styling: 开启隐私模式 (不显示地图仅显示轨迹): 设置为 `true`
-// 注意：此配置仅影响页面显示，数据保护请参考下方的 "隐私保护"
-const PRIVACY_MODE = false;
-// styling: 默认关灯：设置为 `false`, 仅在隐私模式关闭时生效 (`PRIVACY_MODE` = false)
-const LIGHTS_ON = true;
-// styling: 是否显示列 ELEVATION_GAIN
-const SHOW_ELEVATION_GAIN = false;
+当使用 **"mapbox"**、**"maptiler"** 或是 **"stadiamaps"** 时，需配置`MAP_TILE_ACCESS_TOKEN`。默认的 token 在不更改的情况下，使用时会发生配额超限的问题。
+
+- **Mapbox**: 在 https://www.mapbox.com/ 注册（有使用成本）
+- **MapTiler**: 在 https://cloud.maptiler.com/auth/widget 注册获取（免费）
+- **Stadia Maps**: 在 https://client.stadiamaps.com/signup/ 注册获取（免费）
+
+## 主题系统 (3.0)
+
+Running Page 3.0 引入了可插拔的主题架构。内置主题包括 **Dashboard**（现代单页布局）和 **Classic**（原始多页面布局）。
+
+### 切换主题
+
+编辑 `config.yml`，重新构建即可：
+
+```yaml
+# dashboard | classic | 自定义
+theme_preset: classic
+```
+
+> 详细架构说明、主题介绍、自定义主题创建方法及共享核心层 API 请参阅 **[docs/theme-system.md](docs/theme-system.md)**。
+
+## 个性化设置 (3.0)
+
+所有个性化设置通过项目根目录的 `config.yml` 完成。直接编辑此文件即可，无需修改代码。
+
+```yaml
+# config.yml
+mapbox_token: 'your-token-here'   # https://account.mapbox.com
+avatar: 'https://...'              # 头像 URL
+locale: zh                         # zh | en
+theme: dark                        # system | light | dark
+theme_preset: dashboard            # dashboard | classic | 自定义
+
+goals:
+  Run:
+    yearly: 2000                   # 年度目标 (km)
+    monthly: 150                   # 月度目标 (km)
+    weekly: 35                     # 周度目标 (km)
+    unit: distance                 # distance (km) | time (分钟)
 ```
 
 > 隐私保护：设置下面环境变量：
@@ -486,73 +570,6 @@ python run_page/joyrun_sync.py 1393xx30xxxx 97e5fe4997d20f9b1007xxxxx --from-uid
 
 ```bash
 python run_page/joyrun_sync.py 13333xxxx xxxx --athlete yihong0618 --min_grid_distance 5
-```
-
-</details>
-
-### Codoon（咕咚）
-
-> 因悦跑圈限制单个设备，无法自动化。
-
-<details>
-<summary>获取您的咕咚数据</summary>
-
-<br>
-
-```bash
-python run_page/codoon_sync.py ${your mobile or email} ${your password}
-```
-
-示例：
-
-```bash
-python run_page/codoon_sync.py 13333xxxx xxxx
-```
-
-Codoon 导出 gpx
-
-> 导出的 gpx 在 GPX_OUT 目录，方便上传到其它软件
-
-```bash
-python run_page/codoon_sync.py ${your mobile or email} ${your password} --with-gpx
-```
-
-示例：
-
-```bash
-python run_page/codoon_sync.py 13333xxxx xxxx --with-gpx
-```
-
-> 因为登录 token 有过期时间限制，我增加了 refresh_token&user_id 登陆的方式，refresh_token 及 user_id 在您登陆过程中会在控制台打印出来
-
-![image](https://user-images.githubusercontent.com/6956444/105690972-9efaab00-5f37-11eb-905c-65a198ad2300.png)
-
-示例：
-
-```bash
-python run_page/codoon_sync.py 54bxxxxxxx fefxxxxx-xxxx-xxxx --from-auth-token
-```
-
-</details>
-
-<details>
-<summary>路线偏移修正</summary>
-
-<br>
-
-如果您得到的运动路线与实际路线对比有整体偏移，可以修改代码中的参数进行修正
-
-> 咕咚最初采用 GCJ-02 坐标系，在 2014 年 3 月份左右升级为 WGS-84 坐标系，导致升级之前的运动数据在使用 WGS-84 坐标系的平台（Mapbox、佳明等）中显示轨迹整体偏移
-
-- 修改 `run_page/codoon_sync.py` 文件中的参数：
-
-> TRANS_END_DATE 需要根据您的实际情况设定，程序会修正这一天之前的运动记录
-
-```python
-# If your points need trans from gcj02 to wgs84 coordinate which use by Mapbox
-TRANS_GCJ02_TO_WGS84 = True
-# trans the coordinate data until the TRANS_END_DATE, work with TRANS_GCJ02_TO_WGS84 = True
-TRANS_END_DATE = "2014-03-24"
 ```
 
 </details>
@@ -766,6 +783,9 @@ python run_page/nike_sync.py eyJhbGciThiMTItNGIw******
 <summary>获取 Strava 数据</summary>
 
 <br>
+
+> [!NOTE]
+> Strava 在 2026 年 6 月更新了 Developer Program。如果你使用 Strava 作为数据源，或者先把其它平台的数据上传到 Strava 再同步，请先在 [Strava API settings dashboard](https://www.strava.com/settings/api) 检查自己的 app tier。Standard Tier 开发者需要拥有 Strava 订阅才能访问 API；已有 Standard Tier 开发者会从 2026 年 6 月 30 日开始受到影响。详情见 [Strava 官方公告](https://communityhub.strava.com/insider-journal-9/an-update-to-our-developer-program-13428)。
 
 1. 注册/登陆 [Strava](https://www.strava.com/) 账号
 2. 登陆成功后打开 [Strava Developers](http://developers.strava.com) -> [Create & Manage Your App](https://strava.com/settings/api)
@@ -1004,10 +1024,10 @@ python run_page/nike_to_strava_sync.py eyJhbGciThiMTItNGIw******  xxx xxx xxx
 
 </details>
 
-### Coros 高驰
+### COROS 高驰
 
 <details>
-<summary>获取您的 Coros 高驰 数据</summary>
+<summary>获取您的 COROS 高驰 数据</summary>
 
 <br>
 
@@ -1026,6 +1046,21 @@ python run_page/coros_sync.py ${{ secrets.COROS_ACCOUNT }} ${{ secrets.COROS_PAS
 - 在 github action 中配置 `COROS_ACCOUNT`，`COROS_PASSWORD` 参数
 
   ![github-action](https://img3.uploadhouse.com/fileuploads/30980/3098042335f8995623f8b50776c4fad4cf7fff8d.png)
+
+</details>
+
+### iGPSPORT
+
+<details>
+<summary>获取您的 iGPSPORT 迹驰 数据</summary>
+
+#### 在终端中输入以下命令
+
+```bash
+python run_page/igpsport_sync.py ${iGPSPORT_mobile} ${iGPSPORTS_password} --with-gpx
+```
+
+如果你想要 fit 格式的数据而非 gpx,可以将`--with-gpx`替换为`--with-fit`。
 
 </details>
 
@@ -1057,6 +1092,74 @@ python run_page/keep_to_strava_sync.py ${your mobile} ${your password} ${client_
    ```yaml
    RUN_TYPE: keep_to_strava_sync
    ```
+
+</details>
+
+### Komoot
+
+<details>
+<summary>获取您的 Komoot 数据</summary>
+
+#### 在终端中输入以下命令
+
+```bash
+python3 run_page/komoot_sync.py 'your komoot email' 'password' --with-gpx
+```
+
+</details>
+
+### Onelap
+
+<details>
+<summary>获取您的迈金顽鹿数据</summary>
+
+#### 在终端中输入以下命令
+
+```bash
+python3 run_page/onelap_sync.py 'your onelap phone' 'password' --with-fit
+```
+
+</details>
+
+### Intervals.icu
+
+<details>
+<summary>获取您的 <code>Intervals.icu</code> 数据</summary>
+
+<br>
+
+从 [Intervals.icu](https://intervals.icu) 同步跑步数据，下载原始 FIT/GPX 文件。
+
+1. 登录 [Intervals.icu](https://intervals.icu)，前往 **Settings** → **Developer Settings** 查看您的 **Athlete ID** 并创建 **API Key**。
+
+2. 在根目录下执行：
+
+```bash
+python run_page/intervals_icu_sync.py ${athlete_id} ${api_key}
+```
+
+如果需要同步所有历史数据（默认为最近 6 个月）：
+
+```bash
+python run_page/intervals_icu_sync.py ${athlete_id} ${api_key} --all
+```
+
+指定自定义起始日期：
+
+```bash
+python run_page/intervals_icu_sync.py ${athlete_id} ${api_key} --start-date 2024-01-01
+```
+
+如果你的数据来自华为等使用 GCJ-02 坐标系的国行设备，添加 `--gcj02` 参数可修复坐标偏移（将下载的 FIT/GPX/TCX 文件中的 GCJ-02 坐标转换为 WGS-84）：
+
+```bash
+python run_page/intervals_icu_sync.py ${athlete_id} ${api_key} --gcj02
+```
+
+#### GitHub Actions
+
+1. 在 `run_data_sync.yml` 中将 `RUN_TYPE` 修改为 `intervals_icu`
+2. 在 GitHub 仓库的 Secrets 中添加 `INTERVALS_ICU_ATHLETE_ID` 和 `INTERVALS_ICU_API_KEY`
 
 </details>
 
@@ -1222,22 +1325,19 @@ python3 run_page/auto_share_sync.py --api_key xxxxxxxxx --base_url xxxxxxxx --da
 1. 进入仓库的 "Settings -> GitHub Pages -> Source"，选择 "GitHub Actions"
 
 2. 进入仓库的 "Actions -> Workflows -> All Workflows"，选择左侧面板的 "Run Data Sync"，然后点击 "Run workflow"
-
    - "Run Data Sync" 将更新数据，然后触发 "Publish GitHub Pages" 工作流
    - 确认工作流运行没有错误
 
 3. 打开网站检查结果
-
    - 如果网站没有反映最新数据，请使用“F5”刷新页面
    - 某些浏览器 (比如 Chrome) 可能缓存网页不刷新，您需要使用 Ctrl+F5 (Windows) 或 Shift+Cmd+r (Mac) 强制清除缓存并重新加载页面
 
 4. 为 GitHub Actions 添加代码提交权限，访问仓库的 `Settings > Actions > General`页面，找到 `Workflow permissions` 的设置项，将选项配置为 `Read and write permissions`，支持 CI 将运动数据更新后提交到仓库中。
 
 5. 如果想把你的 running_page 部署在 xxx.github.io 而不是 xxx.github.io/run_page 亦或是想要添加自定义域名于 GitHub Pages，需要做三点
-
    - 修改你的 fork 的 running_page 仓库改名为 xxx.github.io, xxx 是你 github 的 username
    - 修改 gh-pages.yml 中的 Build 模块，删除 `${{ github.event.repository.name }}` 改为`run: PATH_PREFIX=/ pnpm build` 即可
-   - 修改 src/static/site-metadata.ts 中 `siteUrl: ''` 或是添加你的自定义域名，`siteUrl: '[your_own_domain]'`，即可
+   - 在 `config.yml` 中配置 `site_url` 或添加你的自定义域名即可
 
 </details>
 
@@ -1286,7 +1386,6 @@ Actions [源码](https://github.com/yihong0618/running_page/blob/master/.github/
    <center><img src="https://cdn.jujimeizuo.cn/blog/2023/10/get-action-id.jpg" alt="get-action-id"></center>
 
 2. 结合快捷指令
-
    1. 通过 iCloud 获取 [running-page-shortcuts-template](https://www.icloud.com/shortcuts/4a5807a98b9a4e359815ff179c62bacb)
    2. 修改下图字典参数
 

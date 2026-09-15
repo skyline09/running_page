@@ -228,7 +228,11 @@ def parse_raw_data_to_name_tuple(sport_data, with_gpx, with_tcx):
         "name": "activity from oppo",
         # future to support others workout now only for run
         "type": map_oppo_fit_type_to_strava_activity_type(sport_data["sportMode"]),
-        "subtype": map_oppo_fit_type_to_strava_activity_type(sport_data["sportMode"]),
+        "subtype": (
+            "indoor"
+            if sport_data["sportMode"] in AVAILABLE_INDOOR_SPORT_MODE
+            else map_oppo_fit_type_to_strava_activity_type(sport_data["sportMode"])
+        ),
         "start_date": datetime.strftime(start_date, "%Y-%m-%d %H:%M:%S"),
         "end": datetime.strftime(end, "%Y-%m-%d %H:%M:%S"),
         "start_date_local": datetime.strftime(start_date_local, "%Y-%m-%d %H:%M:%S"),
@@ -477,7 +481,7 @@ def parse_points_to_tcx(sport_data, points_dict_list):
     activities.append(activity)
     #   Id
     activity_id = ET.Element("Id")
-    activity_id.text = fit_start_time  # Codoon use start_time as ID
+    activity_id.text = fit_start_time
     activity.append(activity_id)
     #   Creator
     activity_creator = ET.Element("Creator", {"xsi:type": "Device_t"})
