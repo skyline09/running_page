@@ -58,6 +58,7 @@ function Dashboard() {
         <TracksPage
           activities={filtered}
           filter={filter}
+          dark={dark}
           onSelectActivity={setSelectedActivity}
           onBack={() => setPage('home')}
         />

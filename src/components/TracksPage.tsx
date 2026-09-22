@@ -21,6 +21,7 @@ interface TracksPageProps {
   filter: string;
   onBack: () => void;
   onSelectActivity?: (a: Activity | null) => void;
+  dark?: boolean;
 }
 
 function renderTrackSVG(summaryPolyline: string, size = 80): string {
@@ -266,7 +267,7 @@ function TrackMap({
       map.current = null;
       mapReady.current = false;
     };
-  }, [dark]);
+  }, [dark, style]);
 
   // Re-render routes when selection or data changes
   useEffect(() => {
@@ -286,11 +287,14 @@ function getColor(a: Activity): string {
 
 export function TracksPage({
   activities,
+  filter,
   onBack,
   onSelectActivity,
+  dark: darkProp,
 }: TracksPageProps) {
   const { locale } = useLocale();
-  const { dark } = useTheme();
+  const theme = useTheme();
+  const dark = darkProp !== undefined ? darkProp : theme.dark;
   const allYears = getAvailableYears(activities);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [sportFilter, setSportFilter] = useState<SportType | null>(null);
