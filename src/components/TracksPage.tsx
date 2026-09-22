@@ -11,6 +11,7 @@ import {
   formatPace,
 } from '../hooks/useActivities';
 import { useLocale } from '../hooks/useLocale';
+import { useTheme } from '../hooks/useTheme';
 import { MAPBOX_TOKEN, MAP_PROVIDER, CARTO_STYLES } from '../config';
 
 type SportType = 'Run';
@@ -289,6 +290,7 @@ export function TracksPage({
   onSelectActivity,
 }: TracksPageProps) {
   const { locale } = useLocale();
+  const { dark } = useTheme();
   const allYears = getAvailableYears(activities);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [sportFilter, setSportFilter] = useState<SportType | null>(null);
@@ -608,7 +610,7 @@ export function TracksPage({
             <TrackMap
               activity={selectedActivity}
               activities={withPolyline}
-              dark
+              dark={dark}
             />
           </div>
         </div>
