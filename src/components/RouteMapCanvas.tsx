@@ -7,6 +7,10 @@ import { MAPBOX_TOKEN } from '../config';
 import { useLocale } from '../hooks/useLocale';
 import './RouteMap.css';
 
+// Prevent Mapbox GL v3 from wiping canvas when no Mapbox token is provided
+(mapboxgl.Map.prototype as any)._authenticate = () => {};
+(mapboxgl.Map.prototype as any)._revokeAuth = () => {};
+
 export interface RouteMapProps {
   activities: Activity[];
   selectedActivity?: Activity | null;
@@ -146,6 +150,17 @@ export function RouteMapCanvas({
       style: { version: 8, sources: {}, layers: [] },
       center: [121.4, 31.2],
       zoom: 10,
+      transformRequest: (url: string, resourceType?: string) => {
+        if (resourceType === 'Glyphs' || url.includes('/fonts/')) {
+          const match = url.match(/(\d+-\d+\.pbf)/);
+          if (match) {
+            return {
+              url: `https://tiles.basemaps.cartocdn.com/fonts/Noto%20Sans%20Regular/${match[1]}`,
+            };
+          }
+        }
+        return { url };
+      },
       ...cameraRef.current,
       locale: zh
         ? {
