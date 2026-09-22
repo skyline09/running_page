@@ -228,6 +228,7 @@ function TrackMap({
       style,
       center: [108, 35],
       zoom: 3,
+      preserveDrawingBuffer: true,
       transformRequest: (url: string, resourceType?: string) => {
         if (url.includes('events.mapbox.com')) {
           return { url: '' };

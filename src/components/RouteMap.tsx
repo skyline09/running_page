@@ -162,6 +162,7 @@ export function RouteMap({
       style,
       center: [121.4, 31.2],
       zoom: 10,
+      preserveDrawingBuffer: true,
       transformRequest: (url: string, resourceType?: string) => {
         if (url.includes('events.mapbox.com')) {
           return { url: '' };
