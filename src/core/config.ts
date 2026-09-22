@@ -20,7 +20,6 @@ interface AppConfig {
   goals: Record<string, GoalConfig>;
   avatar?: string;
   mapbox_token?: string;
-  map_provider?: string;
 }
 
 const config = rawConfig as unknown as AppConfig;
@@ -39,8 +38,3 @@ export const DEFAULT_GOAL: GoalConfig = GOALS.all ?? {
 export const AVATAR: string = config.avatar ?? '';
 export const MAPBOX_TOKEN: string =
   import.meta.env.VITE_MAPBOX_TOKEN || config.mapbox_token || '';
-export const MAP_PROVIDER: string = config.map_provider ?? 'mapcn';
-export const CARTO_STYLES = {
-  dark: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-  light: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-};

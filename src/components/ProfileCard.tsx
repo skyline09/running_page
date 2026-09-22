@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { Activity, SportFilter } from '../types';
 import { useLocale } from '../hooks/useLocale';
 import {
@@ -12,7 +13,10 @@ interface ProfileCardProps {
   filter?: SportFilter;
 }
 
-export function ProfileCard({ activities, filter = 'all' }: ProfileCardProps) {
+export const ProfileCard = memo(function ProfileCard({
+  activities,
+  filter = 'all',
+}: ProfileCardProps) {
   const { t, locale } = useLocale();
 
   // Filter activities by sport type for distance/count/time
@@ -82,7 +86,7 @@ export function ProfileCard({ activities, filter = 'all' }: ProfileCardProps) {
   };
 
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 transition-all duration-300 hover:border-[var(--color-accent)]/30 hover:bg-[var(--color-accent)]/5 hover:shadow-[var(--color-accent)]/5 hover:shadow-lg">
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 hover:border-[var(--color-accent)]/30 hover:bg-[var(--color-accent)]/5 hover:shadow-[var(--color-accent)]/5 hover:shadow-lg">
       {/* Avatar top-left + Distance */}
       <div className="flex items-center gap-4">
         <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border-2 border-[var(--color-border)]">
@@ -235,4 +239,4 @@ export function ProfileCard({ activities, filter = 'all' }: ProfileCardProps) {
       )}
     </div>
   );
-}
+});

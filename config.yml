@@ -3,11 +3,11 @@
 
 # ── 地图 ──────────────────────────────────────────────────────────────────────
 
-# 地图供应商：mapcn (默认，免 Token 且国内直连稳定) | mapbox (需配置 Token)
-map_provider: mapcn
-
 # Mapbox public access token（https://account.mapbox.com）
-# 使用 mapcn 时无需配置
+# Migrated from src/themes/classic/utils/const.ts
+# For security, this token is managed via GitHub Actions secret (MAPBOX_TOKEN)
+# Users should replace with their own token in GitHub Actions secrets
+# See https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions
 mapbox_token: ''
 
 # ── 外观 ─────────────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 import type { Activity } from '../types';
 import { useLocale } from '../hooks/useLocale';
 
-type Page = 'home' | 'tracks';
+type Page = 'home' | 'tracks' | 'summary';
 
 interface HeaderProps {
   dark: boolean;
@@ -17,22 +17,28 @@ export function Header({ dark, toggleTheme, page, onNavigate }: HeaderProps) {
   const navItems: { label: string; page: Page }[] = [
     { label: t('home'), page: 'home' },
     { label: t('tracks'), page: 'tracks' },
+    { label: t('summary'), page: 'summary' },
   ];
 
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--color-border)] bg-[var(--color-bg)]/70 backdrop-blur-md">
-      <div className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-4">
-        {/* Logo */}
-        <div className="flex items-center gap-2">
-          <span className="text-xl font-bold text-[var(--color-text)]">
-            RUNNING<span className="text-[var(--color-run)]">.</span>PAGE
-          </span>
-        </div>
+      <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+        {/* Logo → home */}
+        <button
+          type="button"
+          onClick={() => onNavigate('home')}
+          aria-label={locale === 'zh' ? '回到首页' : 'Go to home'}
+          title={locale === 'zh' ? '回到首页' : 'Go to home'}
+          className="cursor-pointer border-0 bg-transparent p-0 text-xl font-bold text-[var(--color-text)]"
+        >
+          RUNNING<span className="text-[var(--color-run)]">.</span>PAGE
+        </button>
 
         {/* Right nav */}
-        <div className="flex items-center gap-6">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-6">
           {navItems.map((item) => (
             <button
+              aria-current={item.page === page ? 'page' : undefined}
               type="button"
               key={item.page}
               onClick={() => onNavigate(item.page)}
@@ -46,6 +52,24 @@ export function Header({ dark, toggleTheme, page, onNavigate }: HeaderProps) {
             </button>
           ))}
           <button
+            aria-label={
+              locale === 'zh'
+                ? dark
+                  ? '切换浅色模式'
+                  : '切换深色模式'
+                : dark
+                  ? 'Switch to light mode'
+                  : 'Switch to dark mode'
+            }
+            title={
+              locale === 'zh'
+                ? dark
+                  ? '切换浅色模式'
+                  : '切换深色模式'
+                : dark
+                  ? 'Switch to light mode'
+                  : 'Switch to dark mode'
+            }
             onClick={toggleTheme}
             className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-[var(--color-card)]"
           >
