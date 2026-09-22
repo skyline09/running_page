@@ -140,6 +140,7 @@ export function RouteMapCanvas({
     if (!containerRef.current || !panelRef.current) return;
     const map = new mapboxgl.Map({
       container: containerRef.current,
+      preserveDrawingBuffer: true,
       accessToken: MAPBOX_TOKEN,
       language: zh ? 'zh-Hans' : 'en',
       style: { version: 8, sources: {}, layers: [] },
@@ -191,13 +192,13 @@ export function RouteMapCanvas({
       const code = (event.error as Error & { status?: number }).status;
       if (provider === 'mapbox' && (code === 401 || code === 403)) {
         setProvider('carto');
-      } else {
+      } else if (!map.isStyleLoaded()) {
         failed = true;
         setStatus('error');
       }
     };
     const onIdle = () => {
-      if (!failed) setStatus('ready');
+      if (map.isStyleLoaded() || !failed) setStatus('ready');
     };
     const onLoading = () => setStatus('loading');
     map.on('error', onError);
