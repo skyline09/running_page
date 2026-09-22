@@ -216,6 +216,11 @@ function TrackMap({
   useEffect(() => {
     if (!mapContainer.current) return;
     if (map.current) {
+      mapReady.current = false;
+      map.current.once('style.load', () => {
+        mapReady.current = true;
+        updateRoutes.current();
+      });
       map.current.setStyle(style);
       return;
     }
@@ -234,12 +239,12 @@ function TrackMap({
           return { url: '' };
         }
         if (resourceType === 'Glyphs' || url.includes('/fonts/')) {
-          return {
-            url: url.replace(
-              'https://tiles.basemaps.cartocdn.com/fonts',
-              'https://demotiles.maplibre.org/font'
-            ),
-          };
+          const match = url.match(/(\d+-\d+\.pbf)/);
+          if (match) {
+            return {
+              url: `https://demotiles.maplibre.org/font/Noto%20Sans%20Regular/${match[1]}`,
+            };
+          }
         }
         return { url };
       },

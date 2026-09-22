@@ -32,7 +32,7 @@ export function RouteMap({
 
   // Declared before the effects that reference it (react-hooks/immutability).
   function updateRoutes() {
-    if (!map.current) return;
+    if (!map.current || !map.current.isStyleLoaded()) return;
 
     // Remove existing source/layer
     if (map.current.getLayer('routes')) map.current.removeLayer('routes');
@@ -149,6 +149,9 @@ export function RouteMap({
     if (!mapContainer.current) return;
 
     if (map.current) {
+      map.current.once('style.load', () => {
+        updateRoutes();
+      });
       map.current.setStyle(style);
       return;
     }
@@ -168,12 +171,12 @@ export function RouteMap({
           return { url: '' };
         }
         if (resourceType === 'Glyphs' || url.includes('/fonts/')) {
-          return {
-            url: url.replace(
-              'https://tiles.basemaps.cartocdn.com/fonts',
-              'https://demotiles.maplibre.org/font'
-            ),
-          };
+          const match = url.match(/(\d+-\d+\.pbf)/);
+          if (match) {
+            return {
+              url: `https://demotiles.maplibre.org/font/Noto%20Sans%20Regular/${match[1]}`,
+            };
+          }
         }
         return { url };
       },
