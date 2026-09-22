@@ -3,7 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import * as polyline from '@mapbox/polyline';
 import type { Activity } from '../types';
-import { MAPBOX_TOKEN } from '../config';
+import { MAPBOX_TOKEN, MAP_PROVIDER, CARTO_STYLES } from '../config';
 
 interface RouteMapProps {
   activities: Activity[];
@@ -22,9 +22,13 @@ export function RouteMap({
   const map = useRef<mapboxgl.Map | null>(null);
 
   const style =
-    dark !== false
-      ? 'mapbox://styles/mapbox/dark-v11'
-      : 'mapbox://styles/mapbox/light-v11';
+    MAP_PROVIDER === 'mapcn' || MAP_PROVIDER === 'carto'
+      ? dark !== false
+        ? CARTO_STYLES.dark
+        : CARTO_STYLES.light
+      : dark !== false
+        ? 'mapbox://styles/mapbox/dark-v11'
+        : 'mapbox://styles/mapbox/light-v11';
 
   // Declared before the effects that reference it (react-hooks/immutability).
   function updateRoutes() {
@@ -149,7 +153,13 @@ export function RouteMap({
       return;
     }
 
-    mapboxgl.accessToken = MAPBOX_TOKEN;
+    // 禁用 Mapbox 遥测上报，避免国内网络请求 events.mapbox.com 超时挂起
+    if (mapboxgl.config) {
+      mapboxgl.config.EVENTS_URL = null;
+    }
+    mapboxgl.accessToken =
+      MAPBOX_TOKEN || 'pk.eyJ1IjoiZHVtbXkiLCJhIjoiZHVtbXkifQ.dummy';
+
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style,

@@ -11,7 +11,7 @@ import {
   formatPace,
 } from '../hooks/useActivities';
 import { useLocale } from '../hooks/useLocale';
-import { MAPBOX_TOKEN } from '../config';
+import { MAPBOX_TOKEN, MAP_PROVIDER, CARTO_STYLES } from '../config';
 
 type SportType = 'Run';
 
@@ -105,9 +105,13 @@ function TrackMap({
   const activityRef = useRef(activity);
   const activitiesRef = useRef(activities);
   const style =
-    dark !== false
-      ? 'mapbox://styles/mapbox/dark-v11'
-      : 'mapbox://styles/mapbox/light-v11';
+    MAP_PROVIDER === 'mapcn' || MAP_PROVIDER === 'carto'
+      ? dark !== false
+        ? CARTO_STYLES.dark
+        : CARTO_STYLES.light
+      : dark !== false
+        ? 'mapbox://styles/mapbox/dark-v11'
+        : 'mapbox://styles/mapbox/light-v11';
 
   // Keep the latest props in refs via an effect (not during render) so the
   // stable updateRoutes callback below can read them at event time. This is
@@ -215,7 +219,12 @@ function TrackMap({
       map.current.setStyle(style);
       return;
     }
-    mapboxgl.accessToken = MAPBOX_TOKEN;
+    // 禁用 Mapbox 遥测上报，避免国内网络请求 events.mapbox.com 超时挂起
+    if (mapboxgl.config) {
+      mapboxgl.config.EVENTS_URL = null;
+    }
+    mapboxgl.accessToken =
+      MAPBOX_TOKEN || 'pk.eyJ1IjoiZHVtbXkiLCJhIjoiZHVtbXkifQ.dummy';
     mapReady.current = false;
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
