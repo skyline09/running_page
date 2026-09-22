@@ -156,7 +156,9 @@ function TrackMap({
       });
       const bounds = new mapboxgl.LngLatBounds();
       coords.forEach((c) => bounds.extend(c as [number, number]));
-      m.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+      if (!bounds.isEmpty()) {
+        m.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+      }
       return;
     }
     const features = acts
@@ -203,13 +205,13 @@ function TrackMap({
     const lngs = allCoords.map((c) => c[0]).sort((a, b) => a - b);
     const lats = allCoords.map((c) => c[1]).sort((a, b) => a - b);
     const t = Math.floor(lngs.length * 0.1);
-    m.fitBounds(
-      new mapboxgl.LngLatBounds(
-        [lngs[t], lats[t]],
-        [lngs[lngs.length - 1 - t], lats[lats.length - 1 - t]]
-      ),
-      { padding: 30, maxZoom: 13 }
+    const bounds = new mapboxgl.LngLatBounds(
+      [lngs[t], lats[t]],
+      [lngs[lngs.length - 1 - t], lats[lats.length - 1 - t]]
     );
+    if (!bounds.isEmpty()) {
+      m.fitBounds(bounds, { padding: 30, maxZoom: 13 });
+    }
   });
 
   // Init map once
@@ -224,6 +226,9 @@ function TrackMap({
       map.current.setStyle(style);
       return;
     }
+    if (MAP_PROVIDER === 'mapcn' || MAP_PROVIDER === 'carto') {
+      mapboxgl.baseApiUrl = 'https://tiles.basemaps.cartocdn.com';
+    }
     mapboxgl.accessToken =
       MAPBOX_TOKEN ||
       'pk.eyJ1IjoidW5rbm93biIsImEiOiJjbGZqY2N0d3EwMGNsM3BwN2N4d2N4d2N4In0.unknown';
@@ -233,10 +238,11 @@ function TrackMap({
       style,
       center: [108, 35],
       zoom: 3,
+      testMode: true,
       preserveDrawingBuffer: true,
       transformRequest: (url: string, resourceType?: string) => {
-        if (url.includes('events.mapbox.com')) {
-          return { url: '' };
+        if (url.includes('events.mapbox.com') || url.includes('api.mapbox.com')) {
+          return { url: 'data:application/json,{}' };
         }
         if (resourceType === 'Glyphs' || url.includes('/fonts/')) {
           const match = url.match(/(\d+-\d+\.pbf)/);
@@ -248,7 +254,7 @@ function TrackMap({
         }
         return { url };
       },
-    });
+    } as any);
     map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
     map.current.on('style.load', () => {
       mapReady.current = true;

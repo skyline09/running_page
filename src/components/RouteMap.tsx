@@ -20,6 +20,14 @@ export function RouteMap({
 }: RouteMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
+  const currentStyleRef = useRef<string>('');
+  const selectedActivityRef = useRef(selectedActivity);
+  const activitiesRef = useRef(activities);
+
+  useEffect(() => {
+    selectedActivityRef.current = selectedActivity;
+    activitiesRef.current = activities;
+  });
 
   const style =
     MAP_PROVIDER === 'mapcn' || MAP_PROVIDER === 'carto'
@@ -30,7 +38,6 @@ export function RouteMap({
         ? 'mapbox://styles/mapbox/dark-v11'
         : 'mapbox://styles/mapbox/light-v11';
 
-  // Declared before the effects that reference it (react-hooks/immutability).
   function updateRoutes() {
     if (!map.current || !map.current.isStyleLoaded()) return;
 
@@ -40,40 +47,47 @@ export function RouteMap({
     if (map.current.getLayer('selected')) map.current.removeLayer('selected');
     if (map.current.getSource('selected')) map.current.removeSource('selected');
 
+    const act = selectedActivityRef.current;
+    const acts = activitiesRef.current;
+
     // If a single activity is selected, show only that route highlighted
-    if (selectedActivity?.summary_polyline) {
+    if (act?.summary_polyline) {
       const coords = polyline
-        .decode(selectedActivity.summary_polyline)
+        .decode(act.summary_polyline)
         .map(([lat, lng]) => [lng, lat]);
 
-      map.current.addSource('selected', {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          properties: {},
-          geometry: { type: 'LineString', coordinates: coords },
-        },
-      });
+      if (coords.length > 0) {
+        map.current.addSource('selected', {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            properties: {},
+            geometry: { type: 'LineString', coordinates: coords },
+          },
+        });
 
-      map.current.addLayer({
-        id: 'selected',
-        type: 'line',
-        source: 'selected',
-        paint: {
-          'line-color': selectedActivity.type === 'Run' ? '#f97316' : '#3b82f6',
-          'line-width': 3,
-          'line-opacity': 0.9,
-        },
-      });
+        map.current.addLayer({
+          id: 'selected',
+          type: 'line',
+          source: 'selected',
+          paint: {
+            'line-color': act.type === 'Run' ? '#f97316' : '#3b82f6',
+            'line-width': 3,
+            'line-opacity': 0.9,
+          },
+        });
 
-      const bounds = new mapboxgl.LngLatBounds();
-      for (const c of coords) bounds.extend(c as [number, number]);
-      map.current.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+        const bounds = new mapboxgl.LngLatBounds();
+        for (const c of coords) bounds.extend(c as [number, number]);
+        if (!bounds.isEmpty()) {
+          map.current.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+        }
+      }
       return;
     }
 
     // Otherwise show all routes
-    const features = activities
+    const features = acts
       .filter((a) => a.summary_polyline)
       .map((a) => {
         const coords = polyline
@@ -122,7 +136,6 @@ export function RouteMap({
     // Use median-based approach: find the region where most routes are
     const allCoords: [number, number][] = [];
     for (const f of features) {
-      // Use first coord of each route as representative point
       if (f.geometry.coordinates.length > 0) {
         allCoords.push(f.geometry.coordinates[0] as [number, number]);
       }
@@ -142,33 +155,41 @@ export function RouteMap({
       [lngs[lngs.length - 1 - trimCount], lats[lats.length - 1 - trimCount]]
     );
 
-    map.current.fitBounds(bounds, { padding: 30, maxZoom: 13 });
+    if (!bounds.isEmpty()) {
+      map.current.fitBounds(bounds, { padding: 30, maxZoom: 13 });
+    }
   }
 
   useEffect(() => {
     if (!mapContainer.current) return;
 
     if (map.current) {
-      map.current.once('style.load', () => {
-        updateRoutes();
-      });
-      map.current.setStyle(style);
+      if (currentStyleRef.current !== style) {
+        currentStyleRef.current = style;
+        map.current.setStyle(style);
+      }
       return;
+    }
+
+    if (MAP_PROVIDER === 'mapcn' || MAP_PROVIDER === 'carto') {
+      mapboxgl.baseApiUrl = 'https://tiles.basemaps.cartocdn.com';
     }
 
     mapboxgl.accessToken =
       MAPBOX_TOKEN ||
       'pk.eyJ1IjoidW5rbm93biIsImEiOiJjbGZqY2N0d3EwMGNsM3BwN2N4d2N4d2N4In0.unknown';
 
+    currentStyleRef.current = style;
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style,
       center: [121.4, 31.2],
       zoom: 10,
+      testMode: true,
       preserveDrawingBuffer: true,
       transformRequest: (url: string, resourceType?: string) => {
-        if (url.includes('events.mapbox.com')) {
-          return { url: '' };
+        if (url.includes('events.mapbox.com') || url.includes('api.mapbox.com')) {
+          return { url: 'data:application/json,{}' };
         }
         if (resourceType === 'Glyphs' || url.includes('/fonts/')) {
           const match = url.match(/(\d+-\d+\.pbf)/);
@@ -180,7 +201,7 @@ export function RouteMap({
         }
         return { url };
       },
-    });
+    } as any);
 
     map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
     map.current.addControl(new mapboxgl.FullscreenControl(), 'top-right');
@@ -193,7 +214,7 @@ export function RouteMap({
       map.current?.remove();
       map.current = null;
     };
-  }, [dark]);
+  }, [dark, style]);
 
   useEffect(() => {
     if (map.current?.isStyleLoaded()) {
@@ -208,7 +229,7 @@ export function RouteMap({
       {selectedActivity && (
         <button
           onClick={onClearSelection}
-          className="absolute top-3 left-3 z-10 flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs font-medium shadow-md transition-colors hover:bg-[var(--color-bg)]"
+          className="absolute top-3 left-3 z-10 flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-xs font-medium shadow-md transition-colors hover:bg-[var(--color-bg)] cursor-pointer"
         >
           <svg
             className="h-3.5 w-3.5"
