@@ -219,13 +219,29 @@ function TrackMap({
       map.current.setStyle(style);
       return;
     }
-    mapboxgl.accessToken = MAPBOX_TOKEN;
+    mapboxgl.accessToken =
+      MAPBOX_TOKEN ||
+      'pk.eyJ1IjoidW5rbm93biIsImEiOiJjbGZqY2N0d3EwMGNsM3BwN2N4d2N4d2N4In0.unknown';
     mapReady.current = false;
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style,
       center: [108, 35],
       zoom: 3,
+      transformRequest: (url: string, resourceType?: string) => {
+        if (url.includes('events.mapbox.com')) {
+          return { url: '' };
+        }
+        if (resourceType === 'Glyphs' || url.includes('/fonts/')) {
+          return {
+            url: url.replace(
+              'https://tiles.basemaps.cartocdn.com/fonts',
+              'https://demotiles.maplibre.org/font'
+            ),
+          };
+        }
+        return { url };
+      },
     });
     map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
     map.current.on('style.load', () => {
