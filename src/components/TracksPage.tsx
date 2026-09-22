@@ -219,12 +219,7 @@ function TrackMap({
       map.current.setStyle(style);
       return;
     }
-    // 禁用 Mapbox 遥测上报，避免国内网络请求 events.mapbox.com 超时挂起
-    if (mapboxgl.config) {
-      mapboxgl.config.EVENTS_URL = null;
-    }
-    mapboxgl.accessToken =
-      MAPBOX_TOKEN || 'pk.eyJ1IjoiZHVtbXkiLCJhIjoiZHVtbXkifQ.dummy';
+    mapboxgl.accessToken = MAPBOX_TOKEN;
     mapReady.current = false;
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
