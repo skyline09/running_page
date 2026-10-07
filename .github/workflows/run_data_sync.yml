@@ -26,11 +26,13 @@ on:
 
 env:
   # please change to your own config.
-  RUN_TYPE: pass # support strava_web/strava/nike/garmin/coros/garmin_cn/garmin_sync_cn_global/keep/only_gpx/only_fit/nike_to_strava/strava_to_garmin/tcx_to_garmin/strava_to_garmin_cn/garmin_to_strava/garmin_to_strava_cn/oppo/intervals_icu/db_updater, Please change the 'pass' it to your own
-  ATHLETE: yihong0618
-  TITLE: Yihong0618 Running
+  RUN_TYPE: strava_web # support strava_web/strava/nike/garmin/coros/garmin_cn/garmin_sync_cn_global/keep/only_gpx/only_fit/nike_to_strava/strava_to_garmin/tcx_to_garmin/strava_to_garmin_cn/garmin_to_strava/garmin_to_strava_cn/oppo/intervals_icu/db_updater, Please change the 'pass' it to your own
+  ATHLETE: skyline09
+  TITLE: skyline09 Running
   MIN_GRID_DISTANCE: 10 # change min distance here
   TITLE_GRID: Over 10km Runs # also here
+  GITHUB_NAME: skyline09 # change to yours
+  GITHUB_EMAIL: wwwjieo0@gmail.com # change to yours
 
   # IGNORE_BEFORE_SAVING: True # if you want to ignore some data before saving, set this to True
   IGNORE_START_END_RANGE: 10 # Unit meter
@@ -150,7 +152,7 @@ jobs:
       - name: Run sync Strava web script
         if: env.RUN_TYPE == 'strava_web'
         run: |
-          python run_page/strava_web_sync.py "${{ secrets.STRAVA_JWT }}" --days "${{ vars.STRAVA_WEB_DAYS || '7' }}"
+          python run_page/strava_web_sync.py "${{ secrets.STRAVA_JWT }}" --days "${{ vars.STRAVA_WEB_DAYS || '90' }}"
 
       # for garmin if you want generate 'tcx' you can add --tcx command in the args.
       - name: Run sync Garmin script
@@ -305,6 +307,7 @@ jobs:
     if: needs.sync.result == 'success' && needs.sync.outputs.BUILD_GH_PAGES == 'true'
     name: Build and publish Github Pages
     uses: ./.github/workflows/gh-pages.yml
+    secrets: inherit
     with:
       save_data_in_github_cache: ${{needs.sync.outputs.SAVE_DATA_IN_GITHUB_CACHE == 'true'}}
       data_cache_prefix: ${{needs.sync.outputs.DATA_CACHE_PREFIX}}
