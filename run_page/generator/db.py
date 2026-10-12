@@ -155,6 +155,7 @@ def update_or_create_activity(session, run_activity):
             activity.elapsed_time = run_activity.elapsed_time
             activity.type = run_activity.type
             activity.subtype = run_activity.subtype
+            activity.start_date_local = run_activity.start_date_local
             activity.average_heartrate = run_activity.average_heartrate
             activity.average_speed = float(run_activity.average_speed)
             activity.elevation_gain = current_elevation_gain

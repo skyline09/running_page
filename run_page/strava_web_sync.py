@@ -128,11 +128,10 @@ class WebActivity:
 
 
 def _fmt_local_date(ts):
-    """Unix timestamp -> 'YYYY-MM-DD HH:MM:SS' in BASE_TIMEZONE."""
+    """Unix timestamp (local time as UTC epoch) -> 'YYYY-MM-DD HH:MM:SS'."""
     if not ts:
         return ""
-    local_tz = pytz.timezone(BASE_TIMEZONE)
-    dt = datetime.datetime.fromtimestamp(int(ts), tz=datetime.UTC).astimezone(local_tz)
+    dt = datetime.datetime.fromtimestamp(int(ts), tz=datetime.timezone.utc)
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
