@@ -469,3 +469,4 @@ if __name__ == "__main__":
         SQL_FILE, folder, JSON_FILE, file_suffix=file_type, activity_title_dict=id2title
     )
 
+# trigger sync after deduplication 1794038033
