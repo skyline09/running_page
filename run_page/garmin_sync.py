@@ -468,3 +468,4 @@ if __name__ == "__main__":
     make_activities_file(
         SQL_FILE, folder, JSON_FILE, file_suffix=file_type, activity_title_dict=id2title
     )
+
