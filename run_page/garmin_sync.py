@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
 Python 3 API wrapper for Garmin Connect to get your statistics.
-Copy most code from https://github.com/cyberjunky/python-garminconnect
+Uses python-garminconnect with auto-refresh and modern DI token support.
 """
 
 import argparse
 import asyncio
+import base64
 import datetime as dt
+import json
 import logging
 import os
 
@@ -18,15 +20,25 @@ import zipfile
 from io import BytesIO
 
 import aiofiles
-import garth
 import httpx
 from config import FOLDER_DICT, JSON_FILE, SQL_FILE
 from garmin_device_adaptor import process_garmin_data
 from lxml import etree
 
+try:
+    from garminconnect.client import Client as GarminClient
+    from garminconnect import Garmin as GC
+except ImportError:
+    GarminClient = None
+    GC = None
+
+try:
+    import garth
+except ImportError:
+    garth = None
+
 from utils import make_activities_file
 
-# logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 TIME_OUT = httpx.Timeout(240.0, connect=360.0)
@@ -50,32 +62,148 @@ GARMIN_CN_URL_DICT = {
 
 
 class Garmin:
-    def __init__(self, secret_string, auth_domain, is_only_running=False):
+    def __init__(
+        self,
+        secret_string=None,
+        auth_domain="COM",
+        is_only_running=False,
+        email=None,
+        password=None,
+    ):
         """
         Init module
         """
         self.req = httpx.AsyncClient(timeout=TIME_OUT)
+        self.auth_domain = str(auth_domain).upper() if auth_domain else "COM"
         self.URL_DICT = (
             GARMIN_CN_URL_DICT
-            if auth_domain and str(auth_domain).upper() == "CN"
+            if self.auth_domain == "CN"
             else GARMIN_COM_URL_DICT
         )
-        if auth_domain and str(auth_domain).upper() == "CN":
-            garth.configure(domain="garmin.cn", ssl_verify=False)
         self.modern_url = self.URL_DICT.get("MODERN_URL")
-        garth.client.loads(secret_string)
-        if garth.client.oauth2_token.expired:
-            garth.client.refresh_oauth2()
+        self.is_only_running = is_only_running
+        self.upload_url = self.URL_DICT.get("UPLOAD_URL")
+        self.activity_url = self.URL_DICT.get("ACTIVITY_URL")
+        self.email = email
+        self.password = password
+
+        domain = "garmin.cn" if self.auth_domain == "CN" else "garmin.com"
+        self.gc_client = GarminClient(domain=domain) if GarminClient else None
+
+        authenticated = False
+
+        # 1. Try loading from secret_string
+        if secret_string and self.gc_client:
+            tokenstore = self._parse_tokenstore(secret_string)
+            if tokenstore:
+                try:
+                    self.gc_client.loads(tokenstore)
+                    if self.gc_client.is_authenticated:
+                        if self.gc_client._token_expires_soon():
+                            logger.info("Garmin token expires soon, refreshing via DI refresh token...")
+                            try:
+                                self.gc_client._refresh_di_token()
+                            except Exception as e:
+                                logger.warning(f"Proactive DI refresh failed: {e}")
+                        authenticated = True
+                except Exception as e:
+                    logger.warning(f"Could not load tokenstore into GarminClient: {e}")
+
+        # 2. If not authenticated, try credentials login
+        if not authenticated and self.email and self.password and self.gc_client:
+            logger.info("Attempting Garmin login with email and password...")
+            try:
+                self.gc_client.login(self.email, self.password)
+                authenticated = True
+                logger.info("Garmin login succeeded!")
+            except Exception as e:
+                logger.error(f"Garmin login failed: {e}")
+
+        # 3. Garth fallback (e.g. for legacy CN or legacy tokens)
+        auth_header = ""
+        if self.gc_client and self.gc_client.di_token:
+            auth_header = f"Bearer {self.gc_client.di_token}"
+        elif secret_string and garth:
+            try:
+                if self.auth_domain == "CN":
+                    garth.configure(domain="garmin.cn", ssl_verify=False)
+                garth.client.loads(secret_string)
+                if garth.client.oauth2_token.expired:
+                    garth.client.refresh_oauth2()
+                auth_header = str(garth.client.oauth2_token)
+            except Exception as e:
+                logger.warning(f"Garth fallback failed: {e}")
+
+        if not auth_header:
+            raise GarminConnectAuthenticationError(
+                "Authentication failed: No valid token or login credentials provided"
+            )
 
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36",
             "origin": self.URL_DICT.get("SSO_URL_ORIGIN"),
             "nk": "NT",
-            "Authorization": str(garth.client.oauth2_token),
+            "Authorization": auth_header,
         }
-        self.is_only_running = is_only_running
-        self.upload_url = self.URL_DICT.get("UPLOAD_URL")
-        self.activity_url = self.URL_DICT.get("ACTIVITY_URL")
+
+    @staticmethod
+    def _parse_tokenstore(secret_string):
+        if not secret_string:
+            return None
+        # Try direct JSON with di_token
+        try:
+            data = json.loads(secret_string)
+            if isinstance(data, dict) and "di_token" in data:
+                return secret_string
+        except Exception:
+            pass
+
+        # Try Base64-encoded JSON
+        try:
+            decoded = base64.b64decode(secret_string.strip()).decode("utf-8")
+            data = json.loads(decoded)
+            if isinstance(data, dict) and "di_token" in data:
+                return decoded
+            if isinstance(data, list) and len(data) >= 2 and isinstance(data[1], dict):
+                oauth2 = data[1]
+                access_token = oauth2.get("access_token")
+                refresh_token = oauth2.get("refresh_token")
+                if access_token or refresh_token:
+                    store = {
+                        "di_token": access_token,
+                        "di_refresh_token": refresh_token,
+                        "di_client_id": "GARMIN_CONNECT_MOBILE_ANDROID_DI_2025Q2",
+                    }
+                    return json.dumps(store)
+        except Exception:
+            pass
+        return None
+
+    def _refresh_auth(self):
+        refreshed = False
+        if self.gc_client and self.gc_client.di_refresh_token:
+            try:
+                logger.info("Refreshing Garmin DI token...")
+                self.gc_client._refresh_di_token()
+                refreshed = True
+                logger.info("Successfully refreshed Garmin DI token.")
+            except Exception as e:
+                logger.warning(f"Failed to refresh DI token: {e}")
+
+        if not refreshed and self.email and self.password and self.gc_client:
+            try:
+                logger.info("Attempting full login with credentials...")
+                self.gc_client.login(self.email, self.password)
+                refreshed = True
+                logger.info("Full relogin succeeded.")
+            except Exception as e:
+                logger.error(f"Full relogin failed: {e}")
+
+        if refreshed and self.gc_client and self.gc_client.di_token:
+            self.headers["Authorization"] = f"Bearer {self.gc_client.di_token}"
+            return True
+
+        raise GarminConnectAuthenticationError("Could not refresh token or re-login")
 
     async def fetch_data(self, url, retrying=False):
         """
@@ -83,25 +211,25 @@ class Garmin:
         """
         try:
             response = await self.req.get(url, headers=self.headers)
+            if response.status_code == 401 and not retrying:
+                logger.info("fetch_data got 401 Unauthorized, refreshing auth...")
+                self._refresh_auth()
+                return await self.fetch_data(url, retrying=True)
             if response.status_code == 429:
                 raise GarminConnectTooManyRequestsError("Too many requests")
             logger.debug(f"fetch_data got response code {response.status_code}")
             response.raise_for_status()
             return response.json()
         except Exception as err:
-            print(err)
-            if retrying:
-                logger.debug(
-                    "Exception occurred during data retrieval, relogin without effect: %s",
-                    err,
-                )
-                raise GarminConnectConnectionError("Error connecting") from err
-            else:
-                logger.debug(
-                    "Exception occurred during data retrieval - perhaps session expired - trying relogin: %s",
-                    err,
-                )
-                await self.fetch_data(url, retrying=True)
+            if not retrying:
+                logger.debug("Exception during fetch_data, attempting token refresh: %s", err)
+                try:
+                    self._refresh_auth()
+                    return await self.fetch_data(url, retrying=True)
+                except Exception:
+                    pass
+            logger.error("Exception occurred during data retrieval: %s", err)
+            raise GarminConnectConnectionError("Error connecting") from err
 
     async def get_activities(self, start, limit):
         """
@@ -119,14 +247,31 @@ class Garmin:
         url = f"{self.modern_url}/activity-service/activity/{activity_id}"
         return await self.fetch_data(url)
 
-    async def download_activity(self, activity_id, file_type="gpx"):
+    async def download_activity(self, activity_id, file_type="gpx", retrying=False):
         url = f"{self.modern_url}/download-service/export/{file_type}/activity/{activity_id}"
         if file_type == "fit":
             url = f"{self.modern_url}/download-service/files/activity/{activity_id}"
         logger.info(f"Download activity from {url}")
-        response = await self.req.get(url, headers=self.headers)
-        response.raise_for_status()
-        return response.read()
+        try:
+            response = await self.req.get(url, headers=self.headers)
+            if response.status_code == 401 and not retrying:
+                logger.info("download_activity got 401 Unauthorized, refreshing auth...")
+                self._refresh_auth()
+                return await self.download_activity(
+                    activity_id, file_type=file_type, retrying=True
+                )
+            response.raise_for_status()
+            return response.read()
+        except Exception as err:
+            if not retrying:
+                try:
+                    self._refresh_auth()
+                    return await self.download_activity(
+                        activity_id, file_type=file_type, retrying=True
+                    )
+                except Exception:
+                    pass
+            raise
 
     async def upload_activities_original_from_strava(
         self, datas, use_fake_garmin_device=False
@@ -349,9 +494,22 @@ def get_garmin_summary_infos(activity_summary, activity_id):
 
 
 async def download_new_activities(
-    secret_string, auth_domain, downloaded_ids, is_only_running, folder, file_type
+    secret_string,
+    auth_domain,
+    downloaded_ids,
+    is_only_running,
+    folder,
+    file_type,
+    email=None,
+    password=None,
 ):
-    client = Garmin(secret_string, auth_domain, is_only_running)
+    client = Garmin(
+        secret_string=secret_string,
+        auth_domain=auth_domain,
+        is_only_running=is_only_running,
+        email=email,
+        password=password,
+    )
     # because I don't find a para for after time, so I use garmin-id as filename
     # to find new run to generate
     activity_ids = await get_activity_id_list(client)
@@ -391,7 +549,20 @@ async def download_new_activities(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "secret_string", nargs="?", help="secret_string fro get_garmin_secret.py"
+        "secret_string",
+        nargs="?",
+        default=os.environ.get("GARMIN_SECRET_STRING"),
+        help="secret_string from get_garmin_secret.py or GARMIN_SECRET_STRING env",
+    )
+    parser.add_argument(
+        "--email",
+        default=os.environ.get("GARMIN_EMAIL"),
+        help="Garmin account email",
+    )
+    parser.add_argument(
+        "--password",
+        default=os.environ.get("GARMIN_PASSWORD"),
+        help="Garmin account password",
     )
     parser.add_argument(
         "--is-cn",
@@ -423,12 +594,16 @@ if __name__ == "__main__":
     )
     options = parser.parse_args()
     secret_string = options.secret_string
+    email = options.email
+    password = options.password
     auth_domain = "CN" if options.is_cn else "COM"  # Default to COM if not specified
     file_type = options.download_file_type
     is_only_running = options.only_run
-    if secret_string is None:
-        print("Missing argument nor valid configuration file")
+
+    if secret_string is None and not (email and password):
+        print("Missing secret_string or credentials (GARMIN_EMAIL, GARMIN_PASSWORD)")
         sys.exit(1)
+
     folder = FOLDER_DICT.get(file_type, "gpx")
     # make gpx or tcx dir
     if not os.path.exists(folder):
@@ -452,6 +627,8 @@ if __name__ == "__main__":
             is_only_running,
             folder,
             file_type,
+            email=email,
+            password=password,
         )
     )
     loop.run_until_complete(future)
@@ -468,5 +645,3 @@ if __name__ == "__main__":
     make_activities_file(
         SQL_FILE, folder, JSON_FILE, file_suffix=file_type, activity_title_dict=id2title
     )
-
-# trigger sync after deduplication 1794038033
